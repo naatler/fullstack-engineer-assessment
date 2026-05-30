@@ -366,43 +366,24 @@ curl -X POST http://127.0.0.1:8000/api/orders \
 -d '{"items":[{"product_id":1,"quantity":1}]}'
 ```
 
-## Public API Using ngrok
+## Public API Access
 
-This API can also be accessed publicly using ngrok.
+Base URL:
 
-First, run the Laravel server:
+https://ragingly-subramous-shawna.ngrok-free.dev
 
-```bash
-php artisan serve
-```
+Available endpoints:
 
-Then open a new terminal and run:
+GET /api/products  
+POST /api/products  
+GET /api/products/{id}  
 
-```bash
-ngrok http 8000
-```
+GET /api/orders  
+POST /api/orders  
+GET /api/orders/{id}
 
-ngrok will provide a public URL, for example:
-
-```text
-https://your-ngrok-url.ngrok-free.dev
-```
-
-Public API example:
-
-```text
-https://your-ngrok-url.ngrok-free.dev/api/products
-```
-
-For cURL requests through ngrok, use the `ngrok-skip-browser-warning` header:
-
-```bash
-curl https://your-ngrok-url.ngrok-free.dev/api/products \
--H "Accept: application/json" \
--H "ngrok-skip-browser-warning: true"
-```
-
-Note: The ngrok URL is temporary and only works while the local Laravel server and ngrok process are running.
+GET https://ragingly-subramous-shawna.ngrok-free.dev/api/products
+POST https://ragingly-subramous-shawna.ngrok-free.dev/api/orders
 
 ## Flash Sale Race Condition Test
 
