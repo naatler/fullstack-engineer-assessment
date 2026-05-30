@@ -9,3 +9,4 @@ Route::apiResource('products', ProductController::class)
 
 Route::post('orders', [OrderController::class, 'store']);
 Route::get('orders/{order}', [OrderController::class, 'show']);
+Route::get('orders', [OrderController::class, 'index']);

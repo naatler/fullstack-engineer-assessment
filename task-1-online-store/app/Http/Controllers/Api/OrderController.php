@@ -31,4 +31,11 @@ class OrderController extends Controller
             'data' => $order->load('items.product'),
         ]);
     }
+    public function index(): JsonResponse
+    {
+        return response()->json([
+            'message' => 'Orders retrieved successfully',
+            'data' => Order::with('items.product')->latest()->get(),
+        ]);
+    }
 }
