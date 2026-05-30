@@ -1,5 +1,6 @@
 <?php
 
+
 $grid = [
     '########',
     '#......#',
@@ -10,8 +11,8 @@ $grid = [
 ];
 
 // ---------------------------------------------------------------------------
-// Movement directions: North moves row up (-1), East moves column right (+1),
-// South moves row down (+1). West is not used in this task.
+// Representasi arah gerak di grid 2D.
+// North = naik (row berkurang), East = kanan (col bertambah), South = turun.
 // ---------------------------------------------------------------------------
 const DIRECTIONS = [
     'N' => [-1,  0],
@@ -20,12 +21,12 @@ const DIRECTIONS = [
 ];
 
 /**
- * Finds the player's starting position (X) in the grid.
+ * Cari posisi awal pemain (X) di dalam grid.
  *
  * @param  array<string> $grid
- * @return array{int, int} [$row, $column]
+ * @return array{int, int} [$row, $col]
  *
- * @throws RuntimeException if X is not found
+ * @throws RuntimeException kalau X tidak ditemukan
  */
 function findStartPosition(array $grid): array
 {
@@ -37,71 +38,89 @@ function findStartPosition(array $grid): array
         }
     }
 
-    throw new RuntimeException('Starting position (X) not found in grid.');
+    throw new RuntimeException('Posisi awal (X) tidak ditemukan di grid.');
 }
 
 /**
- * Moves a given number of steps in one direction from a starting cell.
- * Returns null if the path is blocked by an obstacle or goes out of bounds.
+ * Cek apakah sebuah sel bisa diinjak atau tidak.
+ * Sel dianggap valid kalau masih di dalam grid dan bukan tembok.
  *
- * @param  array<string> $grid
- * @param  string        $direction  One of 'N', 'E', 'S'
- * @return array{int, int}|null [$row, $column] or null if blocked
+ * @param array<string> $grid
  */
-function move(array $grid, int $row, int $col, string $direction, int $steps): ?array
+function canStepOn(array $grid, int $row, int $col): bool
+{
+    $isInsideGrid = isset($grid[$row][$col]);
+    $isNotWall    = $isInsideGrid && $grid[$row][$col] !== '#';
+
+    return $isInsideGrid && $isNotWall;
+}
+
+/**
+ * Dari satu titik, jalan ke satu arah selangkah demi selangkah —
+ * persis seperti manusia yang melangkah dan berhenti kalau udah mentok tembok.
+ *
+ * Kumpulkan semua titik yang berhasil diinjak sebelum mentok.
+ *
+ * @param  array<string>        $grid
+ * @param  string               $direction  'N', 'E', atau 'S'
+ * @return array<array{int,int}>            semua titik yang bisa dicapai
+ */
+function walkUntilBlocked(array $grid, int $row, int $col, string $direction): array
 {
     [$rowDelta, $colDelta] = DIRECTIONS[$direction];
 
-    for ($i = 0; $i < $steps; $i++) {
+    $reachable = [];
+
+    // Terus melangkah sampai ketemu tembok atau ujung grid
+    while (true) {
         $row += $rowDelta;
         $col += $colDelta;
 
-        $isOutOfBounds = !isset($grid[$row][$col]);
-        $isObstacle    = isset($grid[$row][$col]) && $grid[$row][$col] === '#';
-
-        if ($isOutOfBounds || $isObstacle) {
-            return null;
+        // Kalau udah mentok, berhenti — ga perlu coba lebih jauh
+        if (!canStepOn($grid, $row, $col)) {
+            break;
         }
+
+        $reachable[] = [$row, $col];
     }
 
-    return [$row, $col];
+    return $reachable;
 }
 
 /**
- * Finds all unique grid cells reachable by navigating North A steps,
- * then East B steps, then South C steps — for all valid combinations of A, B, C.
+ * Cari semua kemungkinan lokasi item dengan cara menjelajahi grid
+ * seperti manusia: dari X jalan ke North dulu, terus belok East,
+ * terus turun ke South. Setiap titik akhir yang berupa jalan (.)
+ * dicatat sebagai kandidat lokasi item.
  *
- * Only cells containing '.' are considered valid item locations.
+ * Pakai array berkey supaya koordinat yang sama ga dicatat dua kali.
  *
- * @param  array<string> $grid
- * @return array<array{int, int}>
+ * @param  array<string>        $grid
+ * @return array<array{int,int}>
  */
 function findPossibleLocations(array $grid): array
 {
     [$startRow, $startCol] = findStartPosition($grid);
 
-    $maxRows = count($grid);
-    $maxCols = strlen($grid[0]);
-
-    // Use a keyed array to avoid duplicate coordinates
     $found = [];
 
-    for ($a = 1; $a <= $maxRows; $a++) {
-        $afterNorth = move($grid, $startRow, $startCol, 'N', $a);
-        if ($afterNorth === null) continue;
+    // Langkah 1: dari posisi X, lihat ke North — bisa injak titik mana aja?
+    $northPoints = walkUntilBlocked($grid, $startRow, $startCol, 'N');
 
-        for ($b = 1; $b <= $maxCols; $b++) {
-            $afterEast = move($grid, $afterNorth[0], $afterNorth[1], 'E', $b);
-            if ($afterEast === null) continue;
+    foreach ($northPoints as [$northRow, $northCol]) {
 
-            for ($c = 1; $c <= $maxRows; $c++) {
-                $afterSouth = move($grid, $afterEast[0], $afterEast[1], 'S', $c);
-                if ($afterSouth === null) continue;
+        // Langkah 2: dari setiap titik North, belok ke East — bisa sampai mana?
+        $eastPoints = walkUntilBlocked($grid, $northRow, $northCol, 'E');
 
-                [$row, $col] = $afterSouth;
+        foreach ($eastPoints as [$eastRow, $eastCol]) {
 
-                if ($grid[$row][$col] === '.') {
-                    $found["{$row},{$col}"] = [$row, $col];
+            // Langkah 3: dari setiap titik East, turun ke South —
+            // kalau titik akhirnya jalan (.), catat sebagai kandidat lokasi item
+            $southPoints = walkUntilBlocked($grid, $eastRow, $eastCol, 'S');
+
+            foreach ($southPoints as [$southRow, $southCol]) {
+                if ($grid[$southRow][$southCol] === '.') {
+                    $found["{$southRow},{$southCol}"] = [$southRow, $southCol];
                 }
             }
         }
@@ -111,15 +130,15 @@ function findPossibleLocations(array $grid): array
 }
 
 /**
- * Prints the grid with probable item locations marked as '$'.
+ * Tampilkan grid dengan menandai kemungkinan lokasi item pakai simbol '$'.
+ * Grid asli tidak diubah — kita kerja di salinannya.
  *
- * @param array<string>       $grid
+ * @param array<string>         $grid
  * @param array<array{int,int}> $locations
  */
 function displayGridWithLocations(array $grid, array $locations): void
 {
     foreach ($locations as [$row, $col]) {
-        // Only mark clear path cells, leave everything else as-is
         if ($grid[$row][$col] === '.') {
             $grid[$row][$col] = '$';
         }
@@ -131,14 +150,14 @@ function displayGridWithLocations(array $grid, array $locations): void
 }
 
 /**
- * Prints the list of probable coordinates in a readable format.
+ * Tampilkan daftar koordinat kandidat lokasi item dalam format yang mudah dibaca.
  *
  * @param array<array{int,int}> $locations
  */
 function displayLocationList(array $locations): void
 {
     if (empty($locations)) {
-        echo 'No reachable locations found.' . PHP_EOL;
+        echo 'Tidak ada lokasi yang bisa dicapai.' . PHP_EOL;
         return;
     }
 
